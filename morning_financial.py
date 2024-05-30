@@ -105,26 +105,24 @@ kakao_last_send_no, toss_last_send_key = keys_and_template["kakao_last_send_no"]
 kakao_financial_posts = get_kakao_financial_posts(id, kakao_last_send_no)
 toss_financial_posts = get_toss_financial_posts(id, toss_last_send_key)
 
-if not kakao_financial_posts and not toss_financial_posts:
-    exit(0)
+if kakao_financial_posts or toss_financial_posts:
+    post_links = '\n'.join(kakao_financial_posts + toss_financial_posts)
 
-post_links = '\n'.join(kakao_financial_posts + toss_financial_posts)
+    request_header = get_headers(os.environ.get("SMS_API_KEY"),
+                                 os.environ.get("SMS_API_SECRET"))
+    request_data = json.dumps({
+        "messages": [
+            {
+                "to": subscriber_phone_numbers[i]["phone_number"],
+                "from": os.environ.get("SENDER_PHONE_NUMBER"),
+                "text": message_template.format(post_links)
+            } for i in range(len(subscriber_phone_numbers))
+        ]
+    }, indent=4)
 
-request_header = get_headers(os.environ.get("SMS_API_KEY"),
-                             os.environ.get("SMS_API_SECRET"))
-request_data = json.dumps({
-    "messages": [
-        {
-            "to": subscriber_phone_numbers[i]["phone_number"],
-            "from": os.environ.get("SENDER_PHONE_NUMBER"),
-            "text": message_template.format(post_links)
-        } for i in range(len(subscriber_phone_numbers))
-    ]
-}, indent=4)
-
-res = requests.post(os.environ.get("SMS_API"),
-              headers=request_header,
-              data=request_data)
+    res = requests.post(os.environ.get("SMS_API"),
+                  headers=request_header,
+                  data=request_data)
 
 supabase.auth.sign_out()
 
