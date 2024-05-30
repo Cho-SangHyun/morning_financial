@@ -39,25 +39,29 @@ def get_headers(apiKey, apiSecret):
                          ', signature=' + get_signature(apiSecret, data)
     }
 
+def update_kakao_last_send_no(id, last_send_no):
+    supabase.table(os.environ.get("TABLE_NAME_1")) \
+        .update({"kakao_last_send_no": last_send_no}).eq("id", id).execute()
+
+def update_toss_last_send_key(id, last_send_key):
+    supabase.table(os.environ.get("TABLE_NAME_2")) \
+        .update({"toss_last_send_key": last_send_key}).eq("id", id).execute()
+
 
 def get_kakao_financial_posts(id, last_send_no):
     res = []
     financial_posts = requests.get(os.environ.get("KAKAO_BANK_POSTS_API"))\
         .json()["data"]["list"]
 
-    for i, post in enumerate(financial_posts):
+    for post in financial_posts:
         no = post["no"]
-
-        if i == 0:
-            supabase.table(os.environ.get("TABLE_NAME_1"))\
-                .update({"kakao_last_send_no": no}).eq("id", id).execute()
 
         if no == last_send_no:
             break
 
         res.append(f'https://brunch.co.kr/@kakaobank/{no}')
 
-    return res
+    return res, financial_posts[0]["no"]
 
 
 def get_toss_financial_posts(id, last_send_key):
@@ -65,19 +69,15 @@ def get_toss_financial_posts(id, last_send_key):
     financial_posts = requests.get(os.environ.get("TOSS_BANK_POSTS_API"))\
         .json()["success"]["results"]
 
-    for i, post in enumerate(financial_posts):
+    for post in financial_posts:
         key = post["key"]
-
-        if i == 0:
-            supabase.table(os.environ.get("TABLE_NAME_2"))\
-                .update({"toss_last_send_key": key}).eq("id", id).execute()
 
         if key == last_send_key:
             break
 
         res.append(f'https://blog.toss.im/article/{key}')
 
-    return res
+    return res, financial_posts[0]["key"]
 
 
 load_dotenv()
@@ -102,8 +102,8 @@ id, message_template = keys_and_template["id"], keys_and_template["message_templ
 kakao_last_send_no, toss_last_send_key = keys_and_template["kakao_last_send_no"], \
     keys_and_template["toss_last_send_key"]
 
-kakao_financial_posts = get_kakao_financial_posts(id, kakao_last_send_no)
-toss_financial_posts = get_toss_financial_posts(id, toss_last_send_key)
+kakao_financial_posts, kakao_last_send_no = get_kakao_financial_posts(id, kakao_last_send_no)
+toss_financial_posts, toss_last_send_key = get_toss_financial_posts(id, toss_last_send_key)
 
 if kakao_financial_posts or toss_financial_posts:
     post_links = '\n'.join(kakao_financial_posts + toss_financial_posts)
@@ -123,6 +123,10 @@ if kakao_financial_posts or toss_financial_posts:
     res = requests.post(os.environ.get("SMS_API"),
                   headers=request_header,
                   data=request_data)
+
+    if res.status_code == 200:
+        update_kakao_last_send_no(id, kakao_last_send_no)
+        update_toss_last_send_key(id, toss_last_send_key)
 
 supabase.auth.sign_out()
 
