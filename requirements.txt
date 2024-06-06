@@ -37,7 +37,7 @@ supabase==2.4.5
 supafunc==0.4.5
 trio==0.22.2
 trio-websocket==0.10.4
-typing_extensions==4.7.1
+typing_extensions==4.11.0
 tzdata==2023.3
 urllib3==2.0.4
 webdriver-manager==4.0.0
